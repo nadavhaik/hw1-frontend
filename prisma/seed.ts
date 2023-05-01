@@ -1,7 +1,6 @@
 import { PrismaClient, Prisma, Post } from '@prisma/client'
 import { SingleBar, Presets } from 'cli-progress'
 import tweets from '../tweets.json'
-
 const nyanProgress = require('nyan-progress')
 // import * as nyanProgress from 'nyan-progress'
 
@@ -130,6 +129,8 @@ const tweetRandomly = async (userId: number): Promise<void> => {
   console.log('Tweeting randomly...');
   startBar(numberOfRandomPosts);
   let totalInserted = 0;
+  
+  
 
   while(totalInserted < numberOfRandomPosts) {
     const postPromises: Promise<void>[] = [];

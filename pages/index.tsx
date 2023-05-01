@@ -5,6 +5,7 @@ import Post, { PostProps } from "../components/Post";
 import prisma from '../lib/prisma'
 import { type } from "os";
 import Link from "next/link";
+import { getSession } from 'next-auth/react'
 
 const Pagination = ({ items,        pageSize,         currentPage,         onPageChange }: 
                     {items: number, pageSize: number, currentPage: number, onPageChange: (page: number) => void}) => {
@@ -20,6 +21,7 @@ const Pagination = ({ items,        pageSize,         currentPage,         onPag
     </div>
   );
  };
+
 
 
 type Nullable<T> = T | null;
@@ -46,11 +48,37 @@ type Post = {
 const postsPerPage = 10;
 
 
-export const getServerSideProps: GetServerSideProps = async ({ query: { page = '1' } }) => {
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const query = context.query;
+  const page = query.hasOwnProperty('page') && query.page !== undefined ? query.page : '1';
   if(Array.isArray(page))
     return {props: []};
+  const req = context.req;
 
+  const session = await getSession({req});
   const pageIndex = parseInt(page);
+
+
+  const getCurrentAuthorId = async (): Promise<number> => {
+    if(session === null ||
+      session.user === null || session.user === undefined) 
+      return -1;
+    const email = session.user.email;
+    if(email === null || email === undefined) return -1;
+    const user = await prisma.user.findFirst({
+      where: {
+        email: email
+      }
+    });
+
+    if(user === null || user === undefined)
+      return -1;
+    
+    return user.id;
+  } 
+
+
+  const currentUserId = await getCurrentAuthorId();
 
   const feed = await prisma.$queryRaw<{id: number}[]>`SELECT id FROM Post where id >
   (
@@ -58,11 +86,12 @@ export const getServerSideProps: GetServerSideProps = async ({ query: { page = '
     (
       SELECT id from Post
       WHERE published = 1
+      OR authorId = ${currentUserId}
       ORDER BY id
       LIMIT ${postsPerPage * (pageIndex - 1)}
     )	
   )
-  AND published = 1
+  AND (published = 1 OR authorId = ${currentUserId})
   LIMIT ${postsPerPage}`
   .then(ids => 
     prisma.post.findMany({
@@ -80,7 +109,11 @@ export const getServerSideProps: GetServerSideProps = async ({ query: { page = '
   );
 
   var totalPages = await prisma.post.count({
-    where: {published: true}
+    where: { OR: [
+      {published: true},
+      {authorId: {equals: currentUserId}}
+    ]
+  }
   }) / postsPerPage;
 
 
