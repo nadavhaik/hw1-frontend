@@ -88,10 +88,8 @@ const randomElement = <T> (array: T[]): T =>
 
 type LoadingBar = "NyanCat" | "SquareBar";
 
-const barType: LoadingBar = "NyanCat";
+const barType: LoadingBar = "SquareBar";
 
-const numberOfRandomPosts = 100000;
-const postsPerBulk = 100;
 var nyanBar: any;
 var sqruareBar: SingleBar;
 
@@ -121,6 +119,24 @@ function stopBar() {
   }
 }
 
+const numberOfRandomPosts = 100000;
+const postsPerBulk = 100;
+const maxNumberOfAttempts = 10;
+
+const postTweet = async(tweet: Tweet) : Promise<Post> => {  
+  let numberOfAttempts = 0;
+  const internalPostTweet = async () : Promise<Post> => {
+    return prisma.post.create({data: tweet}).catch(e => {
+      if(numberOfAttempts === maxNumberOfAttempts)
+        throw e;
+      numberOfAttempts++;
+      console.warn(`Post attempt failed for the ${numberOfAttempts}/${maxNumberOfAttempts} time. Retrying...`);
+      return internalPostTweet();
+    })
+  };
+  return internalPostTweet();
+}
+
 
 const tweetRandomly = async (userId: number): Promise<void> => {
   const allTweets =  getAllTweets(userId);
@@ -129,23 +145,14 @@ const tweetRandomly = async (userId: number): Promise<void> => {
   console.log('Tweeting randomly...');
   startBar(numberOfRandomPosts);
   let totalInserted = 0;
-  
-  
 
   while(totalInserted < numberOfRandomPosts) {
     const postPromises: Promise<void>[] = [];
     const currentBulkSize = Math.min(postsPerBulk, numberOfRandomPosts - totalInserted);
-    await range(currentBulkSize).forEach(async () => {
-      try {
-        postPromises.push(prisma.post.create({data: randomElement(allTweets)})
-        .then(tickBar));
-      } catch(e) {
-        console.warn('Could not create post - retrying.');
-        postPromises.push(prisma.post.create({data: randomElement(allTweets)})
-          .then(tickBar));
-      }
+    range(currentBulkSize).forEach(() => {
+      postPromises.push(postTweet(randomElement(allTweets)).then(tickBar));
       totalInserted++;
-    })
+    });
     await Promise.all(postPromises);
   }
   stopBar();
@@ -155,13 +162,13 @@ const tweetRandomly = async (userId: number): Promise<void> => {
 async function main() {
   console.log(`Start seeding ...`)
 
-  for (const u of userData) {
-    const user = await prisma.user.create({
-      data: u,
+  // for (const u of userData) {
+  //   const user = await prisma.user.create({
+  //     data: u,
       
-    })
-    console.log(`Created user with id: ${user.id}`)
-  }
+  //   })
+  //   console.log(`Created user with id: ${user.id}`)
+  // }
 
 
     const nahab = await prisma.user.create({
@@ -171,7 +178,7 @@ async function main() {
         posts: {create: []}
       }
     });
-    console.log(`Created nahab with id: ${nahab.id}`)
+    console.log(`Created user for nahab with id: ${nahab.id}`)
     await tweetRandomly(nahab.id);
     // console.log(await prisma.post.findMany());
   
