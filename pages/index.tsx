@@ -116,18 +116,21 @@ const Blog: React.FC<Props> = (props) => {
   }
 
   const urlOfPage = (page: number) => `/?page=${page}`;
+  const linkToPage = (page: number, text: string) => 
+    <Link href={urlOfPage(page)} onClick={()=>setPageInNavBar(page)}>{text}</Link>;
 
   function nextPage() {
     if(props.page === props.totalPages) {
       return <span>Next</span>
     }
-    return <Link href={urlOfPage(props.page+1)} onClick={()=>setPageInNavBar(props.page+1)}>  Next</Link>
+    return linkToPage(props.page+1, 'Next');
   } 
+  
   function previousPage() {
     if(props.page === 1) {
       return <span>Previous</span>
     }
-    return <Link href={urlOfPage(props.page-1)} onClick={()=>setPageInNavBar(props.page-1)}>Previous  </Link>
+    return linkToPage(props.page-1, 'Previous');
   }
 
   function gotoPageInNavbar(e: FormEvent<HTMLFormElement>) {
