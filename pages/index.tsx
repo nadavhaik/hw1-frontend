@@ -125,7 +125,7 @@ const Blog: React.FC<Props> = (props) => {
     }
     return linkToPage(props.page+1, 'Next');
   } 
-  
+
   function previousPage() {
     if(props.page === 1) {
       return <span>Previous</span>
@@ -139,7 +139,6 @@ const Blog: React.FC<Props> = (props) => {
   }
 
   const navigationButtons = <React.Fragment>
-
     <form onSubmit={gotoPageInNavbar}>
       <input type='submit' value='Jump to'></input>
       <input type='number' className='page-selector' value={pageInNavbar} onChange={setPageInNavBarIfValid} size={2}></input>
