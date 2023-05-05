@@ -1,39 +1,14 @@
-import React, { useState } from "react";
+import React, { ChangeEvent, FormEvent, useState } from "react";
 import type { GetServerSideProps } from "next";
 import Layout from "../components/Layout";
 import Post, { PostProps } from "../components/Post";
 import prisma from '../lib/prisma'
-import { type } from "os";
 import Link from "next/link";
+import {useRouter} from "next/router";
 import { getSession } from 'next-auth/react'
-
-const Pagination = ({ items,        pageSize,         currentPage,         onPageChange }: 
-                    {items: number, pageSize: number, currentPage: number, onPageChange: (page: number) => void}) => {
-  const pagesCount = Math.ceil(items / pageSize); // 100/10
- 
-  if (pagesCount === 1) return null;
-  const pages = Array.from({ length: pagesCount }, (_, i) => i + 1);
- console.log(pages)
- 
-  return (
-    <div>
-      <div>Pagination</div>
-    </div>
-  );
- };
-
 
 
 type Nullable<T> = T | null;
-
-type Posts = {
-  id: number,
-  title: string,
-  published: boolean,
-  author: Nullable<{name: Nullable<string>}>,
-  authorId: Nullable<number>,
-  content: Nullable<string>
-}[]
 
 type Post = {
   id: number,
@@ -46,8 +21,6 @@ type Post = {
 
 
 const postsPerPage = 10;
-
-
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const query = context.query;
   const page = query.hasOwnProperty('page') && query.page !== undefined ? query.page : '1';
@@ -108,20 +81,13 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     })
   );
 
-  var totalPages = await prisma.post.count({
+  const totalPages = Math.ceil(await prisma.post.count({
     where: { OR: [
       {published: true},
       {authorId: {equals: currentUserId}}
     ]
-  }
-  }) / postsPerPage;
+  }}) / postsPerPage);
 
-
-  const flooredTotalPages = Math.floor(totalPages);
-
-  if(totalPages > flooredTotalPages) {
-    totalPages = flooredTotalPages + 1;
-  }
 
   return {
     props: { feed, page: pageIndex, totalPages }
@@ -139,25 +105,45 @@ type Props = {
 
 
 const Blog: React.FC<Props> = (props) => {
+  const router = useRouter();
+  const [pageInNavbar,  setPageInNavBar] = useState(props.page);
+
+  const setPageInNavBarIfValid = (pageNumberElement: ChangeEvent<HTMLInputElement>): void => {
+    const page = parseInt(pageNumberElement.currentTarget.value);
+    if(page < 1 || page > props.totalPages)
+      return;
+    setPageInNavBar(page);
+  }
+
+  const urlOfPage = (page: number) => `/?page=${page}`;
+
   function nextPage() {
     if(props.page === props.totalPages) {
       return <span>Next</span>
     }
-    return <Link href={`/?page=${props.page+1}`}>Next</Link>
+    return <Link href={urlOfPage(props.page+1)} onClick={()=>setPageInNavBar(props.page+1)}>  Next</Link>
   } 
   function previousPage() {
     if(props.page === 1) {
       return <span>Previous</span>
     }
-    return <Link href={`/?page=${props.page-1}`}>Previous</Link>
+    return <Link href={urlOfPage(props.page-1)} onClick={()=>setPageInNavBar(props.page-1)}>Previous  </Link>
+  }
+
+  function gotoPageInNavbar(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    router.push(urlOfPage(pageInNavbar));
   }
 
   const navigationButtons = <React.Fragment>
-  {previousPage()}
-  <span> </span>
-  <span> </span>
-  <span> </span>
-  {nextPage()}    
+
+    <form onSubmit={gotoPageInNavbar}>
+      <input type='submit' value='Jump to'></input>
+      <input type='number' className='page-selector' value={pageInNavbar} onChange={setPageInNavBarIfValid} size={2}></input>
+    </form>
+    {previousPage()}
+    <span> </span>
+    {nextPage()}
   </React.Fragment>;
 
 
@@ -188,6 +174,10 @@ const Blog: React.FC<Props> = (props) => {
 
         .post + .post {
           margin-top: 2rem;
+        }
+
+        .page-selector {
+          width: 10px
         }
         
       `}</style>
